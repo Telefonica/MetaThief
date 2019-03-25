@@ -100,9 +100,9 @@ def portadoras(pdfs):
 
 # Envio por correo
 def sender(exfilter, doc, tfiles):
-    fromaddr = "tyrionpiraquibe@gmail.com"
+    fromaddr = "xxxx@xxx.cc"
     # Colocar una cuenta valida para envio
-    toaddr = "dsespitia@gmail.com"
+    toaddr = "xxx@xxx.cc"
     # Colocar destino de los archivos filtrados
     msg = MIMEMultipart()
     msg['From'] = fromaddr
