@@ -100,9 +100,10 @@ def portadoras(pdfs):
 
 # Envio por correo
 def sender(exfilter, doc, tfiles):
-    fromaddr = "xxxx@xxx.cc"
+    fromaddr = "CUENTA DE CORREO PARA ENVIAR"
+    passfrom = "PASSWORD DE ESTA CUENTA"
     # Colocar una cuenta valida para envio
-    toaddr = "xxx@xxx.cc"
+    toaddr = "CUENTA DE CORREO DONDE RECIBIR"
     # Colocar destino de los archivos filtrados
     msg = MIMEMultipart()
     msg['From'] = fromaddr
@@ -118,7 +119,7 @@ def sender(exfilter, doc, tfiles):
     msg.attach(p)
     s = smtplib.SMTP('smtp.gmail.com', 587)
     s.starttls()
-    s.login(fromaddr, "TyPi_faK3")
+    s.login(fromaddr, passfrom)
     text = msg.as_string()
     s.sendmail(fromaddr, toaddr, text)
     s.quit()
